@@ -3,15 +3,18 @@ class DC_Net:
         self.clients: list[DC_Client] = []
     
     def add_client(self, name: str):
-        self.clients.append(DC_Client(name))
+        new_client = DC_Client(name)
+        self.clients.append(new_number)
         new_number = len(self.clients) - 1
         
-        # todo: add adapters
+        for i in range(len(self.clients)):
+            self.clients[i].adapters[name] = NetworkAdapter(self.clients[i], new_client)
+            new_client.adapters[self.clients[i].name] = NetworkAdapter(new_client, self.clients[i])
 
 class DC_Client:
     def __init__(self, name):
         self.name = name
-        self.adapters: dict[int, NetworkAdapter] = {}
+        self.adapters: dict[str, NetworkAdapter] = {}
         self.files: dict[str, str] = {}
 
     def add_file(self, name: str, content):
