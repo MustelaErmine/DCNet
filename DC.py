@@ -32,4 +32,6 @@ class NetworkAdapter:
         self.client_to: DC_Client = client_to
 
     def tranfer(self, content):
+        with open('logs.txt', '+a') as file:
+            file.write(f'{self.client_from.name} ===> {self.client_to} : "{content}"')
         self.client_to.recieve(self.client_from, content)
