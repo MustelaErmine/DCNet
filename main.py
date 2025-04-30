@@ -1,4 +1,4 @@
-from DC import DC_Net
+from DC import *
 
 def init_options() -> tuple:
     pass
