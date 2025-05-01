@@ -97,7 +97,7 @@ class DC_Client:
             self.adapters[dest].tranfer('dh:rem')
         for dest in destinations:
             self.adapters[dest].tranfer('dh:all')
-        self.file = 0
+        self.file = 0 if name not in self.files else ordstr(self.files[name])
         for dest in destinations:
             self.file ^= self.keys[dest]
             self.adapters[dest].tranfer(f'dc:filereq;{name}')
