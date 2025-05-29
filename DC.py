@@ -3,16 +3,30 @@ from random import randint
 class DC_Net:
     def __init__(self):
         self.clients: list[DC_Client] = []
+        self.checksums: dict[str, int] = {}
     
     def add_client(self, new_name: str):
         new_client = DC_Client(new_name)
+        self.process_new_client(new_client)
+
+    def add_violent_client(self, new_name: str):
+        new_client = DC_Client_Violent(new_name)
+        self.process_new_client(new_client)
+
+    def process_new_client(self, new_client):
         self.clients.append(new_client)
         new_number = len(self.clients) - 1
+        new_client.checksums = self.checksums
         
         for i in range(len(self.clients)):
             if i != new_number:
-                self.clients[i].adapters[new_name] = NetworkAdapter(self.clients[i], new_client)
+                self.clients[i].adapters[new_client.name] = NetworkAdapter(self.clients[i], new_client)
                 new_client.adapters[self.clients[i].name] = NetworkAdapter(new_client, self.clients[i])
+    
+    def add_checksum(self, filename, sum):
+        self.checksums[filename] = sum
+        for client in self.clients:
+            client.checksums[filename] = sum
 
 max_length = 64
 
@@ -32,6 +46,12 @@ def fastpow(a, b, p):
         return fastpow((a * a) % p, b // 2, p)
     return (a * fastpow((a * a) % p, b // 2, p)) % p
 
+def checksum(file: str):
+    res = 0
+    for let in file:
+        res ^= ord(let)
+    return res
+
 class DC_Client:
     def __init__(self, name):
         self.name = name
@@ -39,7 +59,8 @@ class DC_Client:
         self.files: dict[str, str] = {}
         self.keys: dict[str, int] = {}
         self.keys_kits: dict[str, tuple] = {}
-        self.file = 0
+        self.file: int = 0
+        self.checksums: dict[str, int] = {}
 
     def add_file(self, name: str, content):
         if len(content) > max_length:
@@ -59,7 +80,7 @@ class DC_Client:
             g_b = fastpow(g,b,p)
             g_ab = fastpow(g_a, b, p)
             self.keys[source.name] = g_ab
-            ret.tranfer(f'dh:2;{g_b}')
+            ret.transfer(f'dh:2;{g_b}')
         elif head == 'dh:2':
             g_b = int(content)
             g, p, a = self.keys_kits[source.name]
@@ -73,34 +94,40 @@ class DC_Client:
                 if dest not in self.keys:
                     self.do_dh(dest)
         elif head == 'dc:filereq':
-            filename = content
-            xor = 0
-            for dest in self.keys:
-                xor ^= self.keys[dest]
-            if filename in self.files:
-                xor ^= ordstr(self.files[filename])
-            ret.tranfer(f'dc:fileres;{chrstr(xor)}')
+            ret.transfer(f'dc:fileres;{self.dcfilereq(content, ret)}')
         elif head == 'dc:fileres':
             file = content
             self.file ^= ordstr(file)
+
+    def dcfilereq(self, content, ret):
+        filename = content
+        xor = 0
+        for dest in self.keys:
+            xor ^= self.keys[dest]
+        if filename in self.files:
+            xor ^= ordstr(self.files[filename])
+        return chrstr(xor)
 
     def do_dh(self, dest: str):
         adapter: NetworkAdapter = self.adapters[dest]
         g, p, a = random_key(), random_key(), random_key()
         g_a = fastpow(g,a,p)
         self.keys_kits[dest] = (g, p, a)
-        adapter.tranfer(f'dh:1;{g},{p},{g_a}')
+        adapter.transfer(f'dh:1;{g},{p},{g_a}')
 
     def request_file(self, name) -> str:
         destinations = list(self.adapters.keys())
         for dest in destinations:
-            self.adapters[dest].tranfer('dh:rem')
+            self.adapters[dest].transfer('dh:rem')
         for dest in destinations:
-            self.adapters[dest].tranfer('dh:all')
+            self.adapters[dest].transfer('dh:all')
         self.file = 0 if name not in self.files else ordstr(self.files[name])
         for dest in destinations:
             self.file ^= self.keys[dest]
-            self.adapters[dest].tranfer(f'dc:filereq;{name}')
+            self.adapters[dest].transfer(f'dc:filereq;{name}')
+
+        if checksum(chrstr(self.file)) != self.checksums[name]:
+            raise ValueError()
         return chrstr(self.file)
 
 class NetworkAdapter:
@@ -108,8 +135,12 @@ class NetworkAdapter:
         self.client_from: DC_Client = client_from
         self.client_to: DC_Client = client_to
 
-    def tranfer(self, content):
+    def transfer(self, content):
         #with open('logs.txt', '+a') as file:
         #    file.write(f'{self.client_from.name} ===> {self.client_to} : "{content}"')
-        print(f'{self.client_from.name} ===> {self.client_to} : "{content}"')
+        print(f'{self.client_from.name} ===> {self.client_to.name} : "{content}"')
         self.client_to.recieve(self.client_from, content)
+
+class DC_Client_Violent(DC_Client):
+    def dcfilereq(self, content, ret):
+        return chrstr(ordstr(super().dcfilereq(content, ret)) ^ ordstr('mistake'))

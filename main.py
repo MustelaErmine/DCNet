@@ -6,10 +6,11 @@ def init_options() -> tuple:
 def choose_category() -> int:
     message = '''\nВыберете категорию:
 1 - добавить клиента;
-2 - операции на клиенте
+2 - операции на клиенте;
+3 - добавить клиента-нарушителя целостности
 : '''
     answer = -1
-    while answer not in ['1', '2']:
+    while answer not in ['1', '2', '3']:
         answer = input(message)
     return int(answer)
 
@@ -33,6 +34,12 @@ def operate_clients(dc: DC_Net):
     new_name = input(message)
     dc.add_client(new_name)
     print('Клиент добавлен!\n')
+
+def operate_violent_clients(dc: DC_Net):
+    message = '''\nВведите имя клиента-нарушителя целостности: '''
+    new_name = input(message)
+    dc.add_violent_client(new_name)
+    print('Клиент-нарушитель добавлен!\n')
 
 def operate_client(dc: DC_Net, number: int):
     message = '''Выберите команду:
@@ -61,6 +68,8 @@ def operate_command(dc: DC_Net):
         client_number = choose_client(dc)
         if client_number != -1:
             operate_client(dc, client_number)
+    elif category == 3:
+        operate_violent_clients(dc)
 
 def main():
     options = init_options()
